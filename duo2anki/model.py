@@ -19,8 +19,8 @@ class Model:
         '''The file should be structured as follows:
         
         {
-            'duo': {<duo_word1>: <anki_key_x>, ...}
-            'anki': {<anki_key_x>: <translation to anki_key_x>, ...}
+            'duo': {<duo_word>: <anki_key>, ...}
+            'anki': {<anki_key>: [<anki_word>, <anki_translation>], ...}
         }
         '''
         return {
