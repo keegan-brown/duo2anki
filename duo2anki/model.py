@@ -6,11 +6,11 @@ import uuid
 
 class Model:
 
+    PATH_MODELS = 'models/'
+
     class ModelTemplate(TypedDict):
         duo:    Dict[str, Optional[str]]
         anki:   Dict[str, Tuple[str, str]]
-
-    PATH_MODELS = 'models/'
 
     @property
     def TEMPLATE(self) -> ModelTemplate:
