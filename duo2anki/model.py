@@ -4,13 +4,15 @@ import os
 from typing import List, Dict, Tuple, TypedDict, Optional
 import uuid
 
+
+class ModelTemplate(TypedDict):
+    duo:    Dict[str, Optional[str]]
+    anki:   Dict[str, Tuple[str, str]]
+
+
 class Model:
 
     PATH_MODELS = 'models/'
-
-    class ModelTemplate(TypedDict):
-        duo:    Dict[str, Optional[str]]
-        anki:   Dict[str, Tuple[str, str]]
 
     @property
     def TEMPLATE(self) -> ModelTemplate:
@@ -100,7 +102,7 @@ class Model:
         return self._json['anki'][anki_word] is not None
 
     def export_anki_csv(self, file_out):
-        pass
+        pass # TODO: Complete
 
     def get_json(self) -> ModelTemplate:
         return self._json.copy()
