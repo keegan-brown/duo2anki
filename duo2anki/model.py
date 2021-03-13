@@ -1,34 +1,45 @@
 from __future__ import annotations
 import json
 import os
+from pathlib import Path
 from typing import List, Dict, Tuple, TypedDict, Optional
 import uuid
 
 
-class ModelTemplate(TypedDict):
+class ModelInfo(TypedDict):
+    name: str
+    lang: str
+
+
+class ModelDict(TypedDict):
+    meta:   ModelInfo
     duo:    Dict[str, Optional[str]]
     anki:   Dict[str, Tuple[str, str]]
 
 
 class Model:
 
-    PATH_MODELS = 'models/'
-
     @property
-    def TEMPLATE(self) -> ModelTemplate:
-        return {'duo': {}, 'anki': {}}
+    def TEMPLATE(self) -> ModelDict:
+        return {
+            'meta': {
+                'name': '',
+                'lang': '',
+            },
+            'duo': {}, 
+            'anki': {},
+            }
 
-    def __init__(self, file):
-        self._file = os.path.join(self.PATH_MODELS, file)
+    def __init__(self, file: str):
+        self._file = Path(file)
         self._json = self.TEMPLATE
-
+        self._file.mkdir()
         if not os.path.exists(self._file):
             self._create()
         self._read()
 
-    def _create(self):
-        os.makedirs(self.PATH_MODELS, exist_ok=True)
-        if os.path.exists(self._file):
+    def _create(self):        
+        if self._file.exists():
             raise PermissionError(f'File {self._file} already exists, cannot create.')
         self._json = self.TEMPLATE
         self._update()
@@ -38,7 +49,7 @@ class Model:
             self._json = json.load(f)
 
     def _update(self):
-        with open(self._file, 'w') as f:
+        with open(self._file, 'w') as f: # directory should already exist!
             json.dump(self._json, f)
 
     def update_duo_words(self, file: str):
@@ -104,6 +115,6 @@ class Model:
     def export_anki_csv(self, file_out):
         pass # TODO: Complete
 
-    def get_json(self) -> ModelTemplate:
+    def get_json(self) -> ModelDict:
         return self._json.copy()
 
