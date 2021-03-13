@@ -3,7 +3,7 @@ import tkinter as tk
 import tkinter.ttk as ttk
 import tkinter.messagebox as messagebox
 import tkinter.filedialog as filedialog
-from typing import Optional, Tuple
+from typing import Dict, Optional, Tuple
 
 from duo2anki.model import Model, ModelInfo, ModelDict
 
@@ -13,121 +13,116 @@ PBIG, PSMALL = 5, 2     # padding constants
 
 class DuoWordsGui(tk.Frame):
 
-    class DuoWordsListbox(tk.Listbox):
-        pass
-
     def __init__(self, *args, model=None, **kwargs):
         super().__init__(*args, **kwargs)
 
         self._model: Optional[Model] = model
         self._setup_ui()
-        self.refresh()
+        self.refresh(model)
 
     def _setup_ui(self):
-
-        ttk.Label(self, text="Duolingo Words", font='-weight bold -size 10').pack(side=tk.TOP, fill=tk.X, padx=PSMALL, pady=PSMALL)        
-
-        self._chx_uncategorised = ttk.Checkbutton(self, text="Uncategorised only")
-        self._chx_uncategorised.var = tk.IntVar(value=0)                            # type: ignore        
-        self._chx_uncategorised.configure(variable=self._chx_uncategorised.var)     # type: ignore
-        self._chx_uncategorised.pack(side=tk.TOP, fill=tk.X, padx=PSMALL, pady=PSMALL)
-
-        sub_frame1 = tk.Frame(self)
-        sub_frame1.pack(side=tk.TOP, fill=tk.X)
-
-        tk.Label(sub_frame1, text="Filter: ").pack(side=tk.LEFT, padx=PSMALL, pady=PSMALL)        
-
-        self._tbx_filter = ttk.Entry(sub_frame1)
-        self._tbx_filter.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=PSMALL, pady=PSMALL)
-
-        sub_frame2 = tk.Frame(self)
-        sub_frame2.pack(side=tk.TOP, fill=tk.BOTH, expand=True, padx=PSMALL, pady=PSMALL)
-
-        self._lbx_words = DuoWordsGui.DuoWordsListbox(sub_frame2)
-        self._lbx_words.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=PSMALL, pady=PSMALL)
-        scroll = ttk.Scrollbar(sub_frame2, command=self._lbx_words.yview)
-        scroll.pack(side=tk.LEFT, fill=tk.Y)
-        self._lbx_words.configure(yscrollcommand=scroll.set)
-
-    def refresh(self):
-        pass
-
-
-class AnkiWordsGui(tk.Frame):
-
-    class AnkiWordsListbox(tk.Listbox): pass
-
-    def __init__(self, *args, model=None, **kwargs) -> None:
-        super().__init__(*args, **kwargs)
-
-        self._model: Optional[Model] = model
-        self._setup_ui()
-        self.refresh()    
-
-    def _setup_ui(self):
-        ttk.Label(self, text="Anki Words", font='-weight bold -size 10').pack(side=tk.TOP, fill=tk.X, padx=PSMALL, pady=PSMALL)
         
-        self._chx_untranslated = ttk.Checkbutton(self, text="No translations only")
-        self._chx_untranslated.var = tk.IntVar(value=0)                         # type: ignore        
-        self._chx_untranslated.configure(variable=self._chx_untranslated.var)   # type: ignore
-        self._chx_untranslated.pack(side=tk.TOP, fill=tk.X, padx=PSMALL, pady=PSMALL)
+        ttk.Label(self, text="Duolingo Words", font='-weight bold -size 10').pack(side=tk.TOP, fill=tk.X, padx=PSMALL, pady=PSMALL)  
+
+        self._uncategorised = tk.IntVar(value=0)
+        ttk.Checkbutton(self, text="Uncategorised only", variable=self._uncategorised).pack(side=tk.TOP, fill=tk.X, padx=PSMALL, pady=PSMALL)
 
         sub_frame1 = tk.Frame(self)
         sub_frame1.pack(side=tk.TOP, fill=tk.X)
 
         tk.Label(sub_frame1, text="Filter: ").pack(side=tk.LEFT, padx=PSMALL, pady=PSMALL)
-
-        self._tbx_filter = ttk.Entry(sub_frame1)
-        self._tbx_filter.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=PSMALL, pady=PSMALL)
+        self._filter_text = tk.StringVar()
+        ttk.Entry(sub_frame1, textvariable=self._filter_text).pack(side=tk.LEFT, fill=tk.X, expand=True, padx=PSMALL, pady=PSMALL)
 
         sub_frame2 = tk.Frame(self)
         sub_frame2.pack(side=tk.TOP, fill=tk.BOTH, expand=True, padx=PSMALL, pady=PSMALL)
 
-        self._lbx_words = AnkiWordsGui.AnkiWordsListbox(sub_frame2)
+        self._lbx_words = tk.Listbox(sub_frame2)
         self._lbx_words.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=PSMALL, pady=PSMALL)
         scroll = ttk.Scrollbar(sub_frame2, command=self._lbx_words.yview)
         scroll.pack(side=tk.LEFT, fill=tk.Y)
         self._lbx_words.configure(yscrollcommand=scroll.set)
 
-    def refresh(self):
+    def refresh(self, model: Optional[Model]):
+        self._model = model
+
+        if self._model:
+            pass
+
+    
+
+
+class AnkiWordsGui(tk.Frame):
+
+    def __init__(self, *args, model=None, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+
+        self._model: Optional[Model] = None
+        self._setup_ui()
+        self.refresh(model)    
+
+    def _setup_ui(self):
+
+        ttk.Label(self, text="Anki Words", font='-weight bold -size 10').pack(side=tk.TOP, fill=tk.X, padx=PSMALL, pady=PSMALL)
+        
+        self._untranslated = tk.IntVar()
+        ttk.Checkbutton(self, text="No translations only", variable=self._untranslated).pack(side=tk.TOP, fill=tk.X, padx=PSMALL, pady=PSMALL)
+
+        sub_frame1 = tk.Frame(self)
+        sub_frame1.pack(side=tk.TOP, fill=tk.X)
+
+        tk.Label(sub_frame1, text="Filter: ").pack(side=tk.LEFT, padx=PSMALL, pady=PSMALL)
+        self._filter_text = tk.StringVar()
+        ttk.Entry(sub_frame1, textvariable=self._filter_text).pack(side=tk.LEFT, fill=tk.X, expand=True, padx=PSMALL, pady=PSMALL)
+
+        sub_frame2 = tk.Frame(self)
+        sub_frame2.pack(side=tk.TOP, fill=tk.BOTH, expand=True, padx=PSMALL, pady=PSMALL)
+
+        self._lbx_words = tk.Listbox(sub_frame2)
+        self._lbx_words.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=PSMALL, pady=PSMALL)
+        scroll = ttk.Scrollbar(sub_frame2, command=self._lbx_words.yview)
+        scroll.pack(side=tk.LEFT, fill=tk.Y)
+        self._lbx_words.configure(yscrollcommand=scroll.set)
+
+    def refresh(self, model: Optional[Model]):
         pass
+
 
 class AnkiCardGui(tk.Frame):
     def __init__(self, *args, model=None, **kwargs):
         super().__init__(*args, **kwargs)
         
-        self._model: Optional[Model] = model
+        self._model: Optional[Model] = None
         self._setup_ui()
-        self.refresh()
+        self.refresh(model)
 
     def _setup_ui(self):
+
         ttk.Label(self, text="Anki Card", font='-weight bold -size 10').grid(row=0, column=0, columnspan=2, sticky=tk.W, padx=PSMALL, pady=PSMALL)
         
         ttk.Label(self, text="Front side:").grid(row=1, column=0, sticky=tk.E, padx=PSMALL, pady=PSMALL)
 
-        self._tbx_front = ttk.Entry(self)
-        self._tbx_front.grid(row=1, column=1, padx=PSMALL, pady=PSMALL)
+        self._front = tk.StringVar()
+        ttk.Entry(self, textvariable=self._front).grid(row=1, column=1, padx=PSMALL, pady=PSMALL)
 
         ttk.Label(self, text="Back side:").grid(row=2, column=0, sticky=tk.E, padx=PSMALL, pady=PSMALL)
 
-        self._tbx_back = ttk.Entry(self)
-        self._tbx_back.grid(row=2, column=1, padx=PSMALL, pady=PSMALL)
+        self._back = tk.StringVar()
+        ttk.Entry(self, textvariable=self._back).grid(row=2, column=1, padx=PSMALL, pady=PSMALL)
 
         ttk.Label(self, text="Tags:").grid(row=3, column=0, sticky=tk.NE, padx=PSMALL, pady=PSMALL)
 
         sub_frame1 = tk.Frame(self)
         sub_frame1.grid(row=3, column=1, sticky=tk.NSEW, padx=PSMALL, pady=PSMALL)
 
-        self._tags = {
-            'noun': ttk.Checkbutton(sub_frame1, text='Noun'),
-            'verb': ttk.Checkbutton(sub_frame1, text='Verb'),
-            'adjective': ttk.Checkbutton(sub_frame1, text='Adjective'),
+        self._tags: Dict[str, tk.Variable] = {
+            'noun': tk.IntVar(value=0),
+            'verb': tk.IntVar(value=0),
+            'adjective': tk.IntVar(value=0),
         }
 
-        for cbx in self._tags.values():
-            cbx.var = tk.IntVar(value=0)    # type: ignore -> dynamic attribute
-            cbx.configure(variable=cbx.var) # type: ignore -> dynamic attribute
-            cbx.pack(side=tk.TOP, fill=tk.X, padx=PSMALL//2, pady=PSMALL//2)
+        for key, value in self._tags.items():
+            ttk.Checkbutton(sub_frame1, variable=value, text=key.capitalize()).pack(side=tk.TOP, fill=tk.X, padx=PSMALL//2, pady=PSMALL//2)
 
         ttk.Separator(self, orient=tk.HORIZONTAL).grid(row=4, column=0, columnspan=2, sticky=tk.EW, padx=PSMALL, pady=PSMALL)
 
@@ -144,18 +139,18 @@ class AnkiCardGui(tk.Frame):
 
         self.rowconfigure(index=6, weight=1)
         
-    def refresh(self):
+    def refresh(self, model: Optional[Model]):
         pass
 
 
 class Gui(tk.Frame):
 
-    class _NewDatabaseGui(tk.Toplevel):
+    class _DialogNewDb(tk.Toplevel):
 
         def __init__(self, *args, **kwargs) -> None:
             super().__init__(*args, **kwargs)
 
-            self._db_info: ModelInfo = {'name': '', 'lang': ''}
+            self._db_info: Optional[ModelInfo] = None
             self._db_path: str = ''
 
             self._setup_ui()
@@ -175,10 +170,10 @@ class Gui(tk.Frame):
             ttk.Entry(self, textvariable=self._file).grid(row=2, column=1, sticky=tk.EW, padx=PSMALL, pady=PSMALL)
 
             ttk.Label(self, text='Directory:').grid(row=3, column=0, sticky=tk.E, padx=PSMALL, pady=PSMALL)
-            self._path = tk.StringVar()
-            ttk.Entry(self, textvariable=self._path).grid(row=3, column=1, sticky=tk.EW, padx=PSMALL, pady=PSMALL)
+            self._dir = tk.StringVar()
+            ttk.Entry(self, textvariable=self._dir).grid(row=3, column=1, sticky=tk.EW, padx=PSMALL, pady=PSMALL)
 
-            ttk.Button(self, text='...', width=8, command=self.get_dir).grid(row=3, column=2, padx=PSMALL, pady=PSMALL)            
+            ttk.Button(self, text='...', width=8, command=self._get_dir).grid(row=3, column=2, padx=PSMALL, pady=PSMALL)            
 
             sub_frame1 = tk.Frame(self)
             sub_frame1.grid(row=4, column=0, columnspan=3, sticky=tk.EW)
@@ -188,37 +183,48 @@ class Gui(tk.Frame):
 
             self.columnconfigure(index=1, weight=1)
 
+        def _validate(self) -> Tuple[bool, str]:
+            if self._db_name.get() == '':
+                return False, 'Database name not given'
+            if self._lang.get() == '':
+                return False, 'Language not specified'
+            if self._file.get() == '':
+                return False, 'Filename not specified'
+            if self._dir.get() == '':
+                return False, 'Directory not chosen'
+            return True, ''
+
+        def _get_dir(self) -> None:
+            res = filedialog.askdirectory()
+            if res:
+                self._dir.set(os.path.normpath(res))
+            self.deiconify()
+
         def ok(self):
-            valid, msg = self.validate()
+            valid, msg = self._validate()
             if not valid:
                 messagebox.showerror('Error', msg)
+                return
+
             self._db_info = {
                 'name': self._db_name.get(),
                 'lang': self._lang.get(),
             }
-            self._db_path = os.path.join(self._path.get(), self._file.get())
+            self._db_path = os.path.join(self._dir.get(), self._file.get())
             self.destroy()
 
         def cancel(self):
             self.destroy()
 
-        def validate(self) -> Tuple[bool, str]:
-            return True, ''
-
-        def get_new_db_info(self) -> Tuple[ModelInfo, str]:
+        def get_new_db_info(self) -> Tuple[Optional[ModelInfo], str]:
             self.grab_set()
             self.wait_window()
             return self._db_info, self._db_path
 
-
-        def get_dir(self) -> None:
-            res = filedialog.askdirectory()
-            if res:
-                self._path.set(res)
-            self.deiconify()
-
     def __init__(self, *args, model=None, **kwargs):
         super().__init__(*args, **kwargs)
+
+        self.root: tk.Tk = self.master # type: ignore -> should be called with root
 
         self._model: Optional[Model] = model 
         self._setup_ui()
@@ -226,7 +232,7 @@ class Gui(tk.Frame):
 
     def _setup_ui(self):
 
-        self.master.geometry('900x600') # type: ignore -> root has geometry() method
+        self.root.geometry('900x600') 
 
         self._duo = DuoWordsGui(self)
         self._duo.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=PSMALL, pady=PSMALL)
@@ -248,7 +254,7 @@ class Gui(tk.Frame):
 
         menu_file = tk.Menu(menu, tearoff=0)
         menu_file.add_command(label="New Database", command=self.cmd_new_database)
-        menu_file.add_command(label="Open Database", command=ni)
+        menu_file.add_command(label="Open Database", command=self.cmd_open_database)
         menu_file.add_command(label="Save Database As", command=ni)
         menu.add_cascade(label='File', menu=menu_file)
 
@@ -260,16 +266,34 @@ class Gui(tk.Frame):
         menu_anki.add_command(label="Export Anki words to file", command=ni)
         menu.add_cascade(label='Anki', menu=menu_anki)
 
-        self.master.configure(menu=menu) # type: ignore -> menu exists in root
+        self.root.configure(menu=menu) 
 
     def refresh(self):
+        if self._model:
+            self.root.title(f"Duo2Anki - {self._model.json['info']['name']}") 
+        else:
+            self.root.title("Duo2Anki") 
+
         for component in (self._duo, self._anki, self._anki_card):
-            component.refresh()
+            component.refresh(self._model)
 
     def cmd_new_database(self):
         '''Creates a new database.'''        
-        db_info, path = Gui._NewDatabaseGui(self).get_new_db_info()
-        pass
+        info, path = Gui._DialogNewDb(self).get_new_db_info()
+        if info:
+            self._model = Model(path)
+            self._model.update_info(info)
+        self.refresh()
+
+    def cmd_open_database(self):
+        '''Opens an existing database.'''
+        path = os.path.normpath(filedialog.askopenfilename())
+        if path:
+            try:
+                self._model = Model(path)
+            except Model.ModelError:
+                messagebox.showerror('Error', f"Could not open file at '{path}', bad file format.")
+        self.refresh()
         
 
 def main():

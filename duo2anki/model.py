@@ -1,5 +1,6 @@
 from __future__ import annotations
 import json
+from json.decoder import JSONDecodeError
 import os
 from pathlib import Path
 from typing import List, Dict, Tuple, TypedDict, Optional
@@ -12,17 +13,19 @@ class ModelInfo(TypedDict):
 
 
 class ModelDict(TypedDict):
-    meta:   ModelInfo
+    info:   ModelInfo
     duo:    Dict[str, Optional[str]]
     anki:   Dict[str, Tuple[str, str]]
 
 
 class Model:
 
+    class ModelError(Exception): pass
+
     @property
     def TEMPLATE(self) -> ModelDict:
         return {
-            'meta': {
+            'info': {
                 'name': '',
                 'lang': '',
             },
@@ -30,10 +33,13 @@ class Model:
             'anki': {},
             }
 
+    @property
+    def json(self) -> ModelDict:
+        return self._json.copy()
+
     def __init__(self, file: str):
         self._file = Path(file)
-        self._json = self.TEMPLATE
-        self._file.mkdir()
+        self._json: ModelDict = self.TEMPLATE
         if not os.path.exists(self._file):
             self._create()
         self._read()
@@ -41,16 +47,25 @@ class Model:
     def _create(self):        
         if self._file.exists():
             raise PermissionError(f'File {self._file} already exists, cannot create.')
+        self._file.touch(0o664)
         self._json = self.TEMPLATE
         self._update()
 
     def _read(self):
         with open(self._file, 'r') as f:
-            self._json = json.load(f)
+            try:
+                self._json = json.load(f)
+            except JSONDecodeError:
+                raise Model.ModelError('Invalid File')
+
 
     def _update(self):
         with open(self._file, 'w') as f: # directory should already exist!
             json.dump(self._json, f)
+
+    def update_info(self, info: ModelInfo):
+        self._json['info'] = info
+        self._update()
 
     def update_duo_words(self, file: str):
         '''Updates the model JSON file with newly learned Duolingo words.'''
@@ -114,7 +129,4 @@ class Model:
 
     def export_anki_csv(self, file_out):
         pass # TODO: Complete
-
-    def get_json(self) -> ModelDict:
-        return self._json.copy()
 
