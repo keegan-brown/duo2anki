@@ -13,36 +13,6 @@ PBIG, PSMALL = 5, 2     # padding constants
 
 NI = lambda: messagebox.showerror('Error:', 'This feature is not yet implemented!')
 
-class _DndListbox(tk.Listbox):
-    def __init__(self, *args, **kwargs) -> None:
-        super().__init__(*args, **kwargs)
-
-        self.bind('<Button-3>', self.on_drag_start)
-        self.drop: Optional[_DndListbox] = None
-
-    def dnd_accept(self, source, event):        
-        return self
-
-    def dnd_enter(self, source, event):        
-        pass
-
-    def dnd_motion(self, source, event):
-        pass
-
-    def dnd_leave(self, source, event):
-        pass
-
-    def dnd_end(self, target, event):
-        if target is not None and self is not target:
-            target.drop = self
-            target.event_generate('<<DropReceived>>', when='tail')
-
-    def dnd_commit(self, source, event):
-        pass
-
-    def on_drag_start(self, event):
-        dnd.dnd_start(self, event)
-    
 
 class DuoWordsGui(tk.Frame):
 
@@ -75,14 +45,15 @@ class DuoWordsGui(tk.Frame):
         sub_frame2 = tk.Frame(self)
         sub_frame2.pack(side=tk.TOP, fill=tk.BOTH, expand=True, padx=PSMALL, pady=PSMALL)
 
-        self._lbx_words = _DndListbox(sub_frame2, selectmode=tk.EXTENDED, exportselection=False)
+        self._lbx_words = tk.Listbox(sub_frame2, selectmode=tk.EXTENDED, exportselection=False)
         self._lbx_words.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=PSMALL, pady=PSMALL)
-        self._lbx_words.bind('<<ListboxSelect>>', self._on_word_select)
-        self._lbx_words.bind('<Key>', self._on_lbx_words_key)
-        self._lbx_words.bind('<Button-3>', lambda e: self.event_generate('<<LinkWords>>', when='tail'))
         scroll = ttk.Scrollbar(sub_frame2, command=self._lbx_words.yview)
         scroll.pack(side=tk.LEFT, fill=tk.Y)
         self._lbx_words.configure(yscrollcommand=scroll.set)
+
+        self._lbx_words.bind('<<ListboxSelect>>', self._on_word_select)
+        self._lbx_words.bind('<Key>', self._on_lbx_words_key)
+        self._lbx_words.bind('<Button-3>', self._request_word_link)
 
     def refresh(self, model: Optional[Model] = None):
         self._model = model
@@ -103,6 +74,9 @@ class DuoWordsGui(tk.Frame):
     def get_selected_words(self) -> List[str]:
         return [self._lbx_words.get(i) for i in self._lbx_words.curselection()]
 
+    def nav_to(self):
+        self._lbx_words.focus()
+
     def _request_refresh(self, *args):
         self.event_generate('<<RefreshRequired>>', when='tail')
 
@@ -110,11 +84,22 @@ class DuoWordsGui(tk.Frame):
         self._last_selected = self.get_selected_words()
 
     def _on_lbx_words_key(self, event):
+        if event.keysym == 'Right':
+            self.event_generate('<<NavigateRight>>', when='tail')
+            return
+
+        if event.keysym == 'Return':
+            self._request_word_link(event)
+            return
+
         if event.keysym == 'Delete' and self.get_selected_words():
             if messagebox.askyesno('Delete?', 'Do you want to delete the selected Anki card?'):
                 for word in self.get_selected_words():
                     self._model.delete_duo_word(word)
                 self._request_refresh()
+
+    def _request_word_link(self, event):
+        self.event_generate('<<LinkWords>>', when='tail')
 
 
 class AnkiWordsGui(tk.Frame):
@@ -148,16 +133,16 @@ class AnkiWordsGui(tk.Frame):
         sub_frame2 = tk.Frame(self)
         sub_frame2.pack(side=tk.TOP, fill=tk.BOTH, expand=True, padx=PSMALL, pady=PSMALL)
 
-        self._lbx_words = _DndListbox(sub_frame2, exportselection=False)
+        self._lbx_words = tk.Listbox(sub_frame2, exportselection=False)
         self._lbx_words.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=PSMALL, pady=PSMALL)
-        self._lbx_words.bind('<<ListboxSelect>>', self._on_word_select)
-        self._lbx_words.bind('<Button-3>', lambda e: self.event_generate('<<LinkWords>>', when='tail'))
         scroll = ttk.Scrollbar(sub_frame2, command=self._lbx_words.yview)
         scroll.pack(side=tk.LEFT, fill=tk.Y)
         self._lbx_words.configure(yscrollcommand=scroll.set)
 
         # events
+        self._lbx_words.bind('<<ListboxSelect>>', self._on_word_select)
         self._lbx_words.bind('<Key>', self._on_lbx_words_key)
+        self._lbx_words.bind('<Button-3>', self._request_word_link)
 
     def refresh(self, model: Optional[Model]):
         self._model = model
@@ -169,25 +154,34 @@ class AnkiWordsGui(tk.Frame):
                 self._lbx_words.insert(tk.END, word)
 
                 if self._model.get_duo_words_from_anki_word(word):
-                    self._lbx_words.itemconfig(tk.END, foreground='#266e16')
+                    self._lbx_words.itemconfig(tk.END, foreground='#266e16')                
 
-                if word in self._last_selected:
+                if self._model.get_anki_key_from_anki_word(word) in self._last_selected:
                     self._lbx_words.selection_set(tk.END)
 
     def get_selected_words(self) -> List[str]:
         return [self._lbx_words.get(i) for i in self._lbx_words.curselection()]
 
-        if duo_words:
-            for duo_word in duo_words:
-                self._model.link_duo_word_to_anki_word(duo_word, anki_word)
-
-        self._request_refresh()
+    def nav_to(self):
+        self._lbx_words.focus()
 
     def _on_word_select(self, event):
-        self._last_selected = [self._lbx_words.get(i) for i in self._lbx_words.curselection()]
+        self._last_selected = [self._model.get_anki_key_from_anki_word(word) for word in self.get_selected_words()]
         self.event_generate('<<WordSelected>>', when='tail')
 
     def _on_lbx_words_key(self, event):
+        if event.keysym == 'Left':
+            self.event_generate('<<NavigateLeft>>', when='tail')
+            return
+
+        if event.keysym == 'Right':
+            self.event_generate('<<NavigateRight>>', when='tail')
+            return
+
+        if event.keysym == 'Return':
+            self._request_word_link(event)
+            return
+
         if event.keysym == 'Delete' and self.get_selected_words():
             if messagebox.askyesno('Delete?', 'Do you want to delete the selected Anki card?'):
                 for word in self.get_selected_words():
@@ -202,6 +196,9 @@ class AnkiWordsGui(tk.Frame):
 
     def _request_refresh(self, *args):
         self.event_generate('<<RefreshRequired>>', when='tail')
+
+    def _request_word_link(self, event):
+        self.event_generate('<<LinkWords>>', when='tail')
 
 
 class AnkiCardGui(tk.Frame):
@@ -252,7 +249,7 @@ class AnkiCardGui(tk.Frame):
         sub_frame2 = tk.Frame(self)
         sub_frame2.grid(row=6, column=0, columnspan=2, sticky=tk.NSEW, padx=PSMALL, pady=PSMALL)
 
-        self._lbx_words = tk.Listbox(sub_frame2)
+        self._lbx_words = tk.Listbox(sub_frame2, selectmode=tk.EXTENDED, exportselection=False)
         self._lbx_words.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=PSMALL, pady=PSMALL)
         scroll = ttk.Scrollbar(sub_frame2, command=self._lbx_words.yview)
         scroll.pack(side=tk.LEFT, fill=tk.Y)
@@ -291,6 +288,9 @@ class AnkiCardGui(tk.Frame):
     def get_selected_words(self) -> List[str]:
         return [self._lbx_words.get(i) for i in self._lbx_words.curselection()]
 
+    def nav_to(self):
+        self._lbx_words.focus()
+
     def _on_tbx_key(self, event):
         if event.keysym == 'Return':
             key = self._model.get_anki_key_from_anki_word(self._anki_word)
@@ -299,6 +299,10 @@ class AnkiCardGui(tk.Frame):
             self._request_refresh()
 
     def _on_lbx_words_key(self, event):
+        if event.keysym == 'Left':
+            self.event_generate('<<NavigateLeft>>', when='tail')
+            return
+            
         if event.keysym == 'Delete' and self.get_selected_words():
             for duo_word in self.get_selected_words():
                 self._model.unlink_duo_word(duo_word)
@@ -417,6 +421,10 @@ class Gui(tk.Frame):
         self._anki.bind('<<LinkWords>>', self.link_words)
         self._anki.bind('<<WordSelected>>', lambda e: self._anki_card.on_card_select(self._anki.get_selected_words()))
         self._anki_card.bind('<<RefreshRequired>>', self.refresh)
+        self._duo.bind('<<NavigateRight>>', lambda e: self._anki.nav_to())
+        self._anki.bind('<<NavigateLeft>>', lambda e: self._duo.nav_to())
+        self._anki.bind('<<NavigateRight>>', lambda e: self._anki_card.nav_to())
+        self._anki_card.bind('<<NavigateLeft>>', lambda e: self._anki.nav_to())
 
         # Menu bar
         menu = tk.Menu(self)        

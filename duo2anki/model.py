@@ -151,5 +151,5 @@ class Model:
 
     def export_anki_csv(self, file_out):
         with open(file_out, 'w') as f:
-            f.write('\n'.join([f"{id};{word};{trans}" for id, (word, trans) in self._json['anki'].items()]))
+            f.write('\n'.join([f"{word};{trans}" for id, (word, trans) in self._json['anki'].items()]))
 
