@@ -60,73 +60,96 @@ class Model:
 
 
     def _update(self):
-        with open(self._file, 'w') as f: # directory should already exist!
+        with open(self._file, 'w') as f:
             json.dump(self._json, f)
 
-    def update_info(self, info: ModelInfo):
+    def update_model_info(self, info: ModelInfo):
         self._json['info'] = info
         self._update()
 
-    def update_duo_words(self, file: str):
+    def get_duo_words(self, filter: str='', unassigned_only: bool=False) -> List[str]:
+        start_matches = sorted([duo_word for duo_word, anki_key in self._json['duo'].items() if (duo_word.lower().startswith(filter.lower())) and (unassigned_only == False or self._json['duo'][duo_word] not in self._json['anki'])])
+        other_matches = sorted([duo_word for duo_word, anki_key in self._json['duo'].items() if (filter.lower() in duo_word.lower()) and (unassigned_only == False or self._json['duo'][duo_word] not in self._json['anki']) and (duo_word not in start_matches)])        
+        return start_matches + other_matches
+
+    def get_duo_words_from_anki_key(self, anki_key: str) -> List[str]:
+        return sorted([duo_word for duo_word, _anki_key in self._json['duo'].items() if anki_key == _anki_key])
+
+    def get_duo_words_from_anki_word(self, anki_word: str):
+        return self.get_duo_words_from_anki_key(self.get_anki_key_from_anki_word(anki_word))
+
+    def update_duo_new_words_from_file(self, file: str):
         '''Updates the model JSON file with newly learned Duolingo words.'''
         with open(file, 'r') as f:
-            duo_vocab = json.load(f)
+            self._update_duo_new_words(json.load(f))        
 
-        for _word in duo_vocab['vocab_overview']:
+    def update_duo_new_words_from_str(self, duo_str: str):
+        self._update_duo_new_words(json.loads(duo_str))
+
+    def _update_duo_new_words(self, duo_json: dict):
+        for _word in duo_json['vocab_overview']:
             word = _word['word_string']
             if word not in self._json['duo']:
                 self._json['duo'].update({word: None})
-
         self._update()
 
-    def get_anki_key(self, anki_word: str) -> str:
+    def delete_duo_word(self, duo_word: str):
+        try:
+            self._json['duo'].pop(duo_word)
+        except KeyError:
+            raise Model.ModelError('Duo key not in dict!')
+        self._update()
+
+    def link_duo_word_to_anki_word(self, duo_word: str, anki_word: str):
+        anki_key = self.get_anki_key_from_anki_word(anki_word)
+        self._json['duo'].update({duo_word: anki_key})
+        self._update()
+
+    def unlink_duo_word(self, duo_word: str):
+        self._json['duo'][duo_word] = None
+        self._update()
+
+    def get_anki_words(self, filter: str='', no_translation_only: bool = False) -> List[str]:
+        start_matches = sorted([anki_word for anki_word, translation in self._json['anki'].values() if (anki_word.lower().startswith(filter.lower())) and (no_translation_only == False or translation == '')])
+        other_matches = sorted([anki_word for anki_word, translation in self._json['anki'].values() if (filter.lower() in anki_word.lower()) and (no_translation_only == False or translation=='') and (anki_word not in start_matches)])
+        return start_matches + other_matches
+
+    def get_anki_key_from_duo_word(self, duo_word: str) -> Optional[str]:
+        try:
+            return self._json['duo'][duo_word]
+        except KeyError:
+            raise Model.ModelError(f"Duo word {duo_word} doesn't exist")
+
+    def get_anki_key_from_anki_word(self, anki_word: str) -> str:
         keys = [key for key in self._json['anki'] if self._json['anki'][key][0] == anki_word]
 
         if not len(keys):
-            self._json['anki'].update({str(uuid.uuid4()): (anki_word, '')})
-            self._update()
-            return self.get_anki_key(anki_word)
-            
-        if len(keys) > 1:
-            pass # TODO
-        
-        return keys[0]
+            self.update_anki_entry(str(uuid.uuid4()), anki_word, '')
+            return self.get_anki_key_from_anki_word(anki_word)
+        key, = keys # should only be one
+        return key
 
-    def assign_duo_word(self, duo_word: str, anki_word: str):
-        anki_key = self.get_anki_key(anki_word)
-        self._json['duo'].update({duo_word: anki_key})
+    def get_anki_entry(self, anki_key) -> Tuple[str, str]:
+        try:
+            return self._json['anki'][anki_key]
+        except KeyError:
+            raise Model.ModelError(f"Key {anki_key} doesn't exist!")
 
-        if anki_key not in self._json['anki']:
-            self._json['anki'].update({anki_key: ('', '')})
-
-        self._update()
-
-    def get_duo_words(self, filter: str='', unassigned_only: bool=False) -> List[str]:
-        start_matches = sorted([duo_word for duo_word, anki_key in self._json['duo'].items() if duo_word.lower().startswith(filter)])
-        other_matches = sorted([anki_word for anki_key, (anki_word, translation) in self._json['anki'].items() if (anki_word not in start_matches) and (filter in anki_word.lower())])
-        words = start_matches + other_matches
-        if unassigned_only:
-            words = [word for word in words if self._json['duo'][word] is None or self._json['duo'][word] not in self._json['anki']]
-        return words
-
-    def get_duo_words_from_anki_key(self, anki_key: str) -> List[str]:
-        return [duo_word for duo_word, _anki_key in self._json['duo'].items() if anki_key == _anki_key]
-
-    def get_anki_words(self, filter: str='') -> List[str]:
-        start_matches = sorted([anki_word for anki_word, translation in self._json['anki'].values() if anki_word.lower().startswith(filter.lower())])
-        other_matches = sorted([anki_word for anki_word, translation in self._json['anki'].values() if filter.lower() in anki_word.lower() and anki_word not in start_matches])
-        return start_matches + other_matches
-
-    def assign_anki_translation(self, anki_key: str, anki_word: str, translation: str):
+    def update_anki_entry(self, anki_key: str, anki_word: str, translation: str):
         self._json['anki'].update({anki_key: (anki_word, translation)})
         self._update()
 
-    def is_assigned(self, duo_word: str) -> bool:
-        return self._json['duo'][duo_word] is not None and self._json['duo'][duo_word] in self._json['anki']
-
-    def is_translated(self, anki_word: str) -> bool:
-        return self._json['anki'][anki_word] is not None
+    def delete_anki_entry(self, anki_key: str):
+        try:
+            self._json['anki'].pop(anki_key)
+            for duo_word, key in self._json['duo'].items():
+                if key == anki_key:
+                    self.unlink_duo_word(duo_word)
+        except KeyError:
+            raise Model.ModelError(f"Anki key {anki_key} doesn't exist!")
+        self._update()
 
     def export_anki_csv(self, file_out):
-        pass # TODO: Complete
+        with open(file_out, 'w') as f:
+            f.write('\n'.join([f"{id};{word};{trans}" for id, (word, trans) in self._json['anki'].items()]))
 
